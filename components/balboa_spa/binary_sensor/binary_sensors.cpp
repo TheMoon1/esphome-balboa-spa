@@ -47,16 +47,23 @@ namespace esphome
         void BalboaSpaBinarySensors::set_parent(BalboaSpa *parent)
         {
             this->spa_ = parent;
+            this->publish_state(false);
             parent->register_listener([this]() { this->update(); });
         }
 
         void BalboaSpaBinarySensors::update()
         {
             const SpaState *spaState = spa_->get_current_state();
-            bool sensor_state_value;
-            if (spa_ == nullptr || spaState == nullptr || (!spa_->is_communicating() && sensor_type != BalboaSpaBinarySensorType::CONNECTED))
+            bool sensor_state_value = false;
+            if (spa_ == nullptr || spaState == nullptr)
             {
-                this->publish_state(NAN);
+                this->publish_state(false);
+                return;
+            }
+
+            if (!spa_->is_communicating() && sensor_type != BalboaSpaBinarySensorType::CONNECTED)
+            {
+                this->publish_state(false);
                 return;
             }
 
@@ -68,7 +75,7 @@ namespace esphome
                 filterSettings = spa_->get_current_filter_settings();
                 if (filterSettings == nullptr)
                 {
-                    this->publish_state(NAN);
+                    this->publish_state(false);
                     return;
                 }
             }
@@ -87,7 +94,10 @@ namespace esphome
                 break;
             case BalboaSpaBinarySensorType::REST_MODE:
                 if (spaState->rest_mode == HeatingMode::NOT_YET_RECEIVED)
+                {
+                    this->publish_state(false);
                     return;
+                }
                 sensor_state_value = (spaState->rest_mode == HeatingMode::REST ||
                                       spaState->rest_mode == HeatingMode::READY_IN_REST);
                 break;
@@ -96,6 +106,7 @@ namespace esphome
                 if (state_value == 254)
                 {
                     ESP_LOGD(TAG, "Spa/BSensors/HEAT_STATE: not yet received (254), skipping");
+                    this->publish_state(false);
                     return;
                 }
                 sensor_state_value = state_value;
@@ -127,6 +138,7 @@ namespace esphome
             default:
                 ESP_LOGD(TAG, "Spa/BSensors/UnknownSensorType: SensorType Number: %d", (int)sensor_type);
                 // Unknown enum value. Ignore
+                this->publish_state(false);
                 return;
             }
 

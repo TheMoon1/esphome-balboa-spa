@@ -24,9 +24,8 @@ namespace esphome
         void SpaTargetTempNumber::update()
         {
             float newState = this->state;
-            if (!spa_->is_communicating() && !std::isnan(this->state))
+            if (!spa_->is_communicating())
             {
-                this->publish_state(NAN);
                 return;
             }
             if (sync_temp(spa_->get_current_state()->target_temp, newState))
