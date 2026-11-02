@@ -126,7 +126,7 @@ namespace esphome
                 }
             }
 
-            //ESP_LOGV(TAG, "Checking serial for incoming data...");
+            ESP_LOGV(TAG, "Checking serial for incoming data...");
             while (true)
             {
                 if (!read_serial())
@@ -134,7 +134,7 @@ namespace esphome
                     break;
                 }
             }
-            //ESP_LOGV(TAG, "Finished processing serial data. Updating sensors if needed...");
+            ESP_LOGV(TAG, "Finished processing serial data. Updating sensors if needed...");
 
             if (used_remembered_client_id_for_session_ && client_id != 0 && !client_id_probe_pending_ &&
                 last_status_received_ms_ != 0 && millis() - client_id_set_at_ms_ >= 60000)
@@ -912,8 +912,7 @@ namespace esphome
                             break;
                         const FilterStatusMessage *msg = reinterpret_cast<const FilterStatusMessage *>(input_buffer);
                         ESP_LOGV(TAG, "FilterStatusMessage");
-                        if (!has_last_filter_message_ || memcmp(last_filter_message_, msg, sizeof(FilterStatusMessage)) != 0)
-                            decodeFilterSettings(msg);
+                        decodeFilterSettings(msg);
                         break;
                     }
                     case msControlConfig2:
@@ -922,16 +921,14 @@ namespace esphome
                             break;
                         ESP_LOGV(TAG, "ControlConfig2Response");
                         const ControlConfig2Response *msg = reinterpret_cast<const ControlConfig2Response *>(input_buffer);
-                        if (!has_last_settings_message_ || memcmp(last_settings_message_, msg, sizeof(ControlConfig2Response)) != 0)
-                            decodeSettings(msg);
+                        decodeSettings(msg);
                         break;
                     }
                     default:
-                        if (found_msg_type == 0x06)
-                        {
+                        if(found_msg_type == 0x06){
                             send_message();
                         }
-                        else if (found_msg_type == 0x28 && (!has_last_fault_message_ || memcmp(last_fault_payload_, input_buffer, length) != 0))
+                        else if (found_msg_type == 0x28)
                         {
                             decodeFault();
                         }
@@ -1165,11 +1162,6 @@ namespace esphome
 
         void BalboaSpa::decodeSettings(const ControlConfig2Response *msg)
         {
-            // Mark the request answered before the duplicate check: an unchanged
-            // response is still a response.
-            config_request_status = 2;
-            config_request_retries_ = 0;
-
             if (!update_if_changed(last_settings_message_, has_last_settings_message_, msg))
             {
                 ESP_LOGV(TAG, "ControlConfig2Response unchanged; skipping decode");
@@ -1184,9 +1176,6 @@ namespace esphome
                      spaConfig.circ, spaConfig.blower, spaConfig.mister,
                      spaConfig.aux1, spaConfig.aux2);
             config_request_status = 2;
-            memcpy(last_settings_message_, msg, sizeof(ControlConfig2Response));
-            has_last_settings_message_ = true;
-            last_settings_crc = msg->_suffix._check;
         }
 
         bool BalboaSpa::accept_current_temp(float temp_c)
@@ -1237,7 +1226,7 @@ namespace esphome
         void BalboaSpa::decodeState(const StatusMessage *msg)
         {
             last_status_received_ms_ = millis();
-            if (has_last_status_message_ && memcmp(last_status_message_, msg, sizeof(StatusMessage)) == 0)
+            if (!update_if_changed(last_status_message_, has_last_status_message_, msg))
             {
                 ESP_LOGV(TAG, "StatusMessage unchanged; skipping decode");
                 return;
@@ -1287,22 +1276,10 @@ namespace esphome
 
             spaState = newState;
             prune_and_rebuild();
-            memcpy(last_status_message_, msg, sizeof(StatusMessage));
-            has_last_status_message_ = true;
-            last_state_crc = msg->_suffix._check;
-            last_status_received_ms_ = millis();
-
         }
 
         void BalboaSpa::decodeFilterSettings(const FilterStatusMessage *msg)
         {
-            // Mark the request answered before the duplicate check: an unchanged
-            // response is still a response, and the periodic refresh timer only
-            // runs once the status is back at 2.
-            filtersettings_request_status = 2;
-            filtersettings_request_retries_ = 0;
-            filtersettings_update_timer = 0;
-
             if (!update_if_changed(last_filter_message_, has_last_filter_message_, msg))
             {
                 ESP_LOGV(TAG, "FilterStatusMessage unchanged; skipping decode");
@@ -1339,10 +1316,6 @@ namespace esphome
             {
                 filter_listener(&spaFilterSettings);
             }
-            memcpy(last_filter_message_, msg, sizeof(FilterStatusMessage));
-            has_last_filter_message_ = true;
-            last_filter_crc = input_buffer[input_buffer[0] - 1];
-
         }
 
         void BalboaSpa::decodeFault()
@@ -1350,12 +1323,6 @@ namespace esphome
             // Accesses up to input_buffer[9] — require at least 10 bytes.
             if (!check_fault_length(input_buffer))
                 return;
-
-            // Mark the request answered before the duplicate check: an unchanged
-            // response is still a response, and the filter settings request waits
-            // on this status.
-            faultlog_request_status = 2;
-            faultlog_request_retries_ = 0;
 
             if (!update_if_changed(last_fault_payload_, last_fault_length_, has_last_fault_message_, input_buffer, input_buffer[0]))
             {
@@ -1445,11 +1412,6 @@ namespace esphome
             {
                 listener(&spaFaultLog);
             }
-            last_fault_length_ = input_buffer[0];
-            memcpy(last_fault_payload_, input_buffer, last_fault_length_);
-            has_last_fault_message_ = true;
-            last_fault_crc = input_buffer[input_buffer[0] - 1];
-
         }
 
         bool BalboaSpa::is_communicating()
