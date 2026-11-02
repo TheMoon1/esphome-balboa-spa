@@ -1220,23 +1220,9 @@ namespace esphome
         }
 
         void BalboaSpa::decodeState(const StatusMessage *msg)
-
-        }
-
-        void BalboaSpa::decodeState(const StatusMessage *msg)
         {
             last_status_received_ms_ = millis();
             if (!update_if_changed(last_status_message_, has_last_status_message_, msg))
-            {
-                ESP_LOGV(TAG, "StatusMessage unchanged; skipping decode");
-                return;
-            }
-
-            if (!update_if_changed(last_status_message_, has_last_status_message_, msg))
-            {
-                return;
-            }
-
             {
                 ESP_LOGV(TAG, "StatusMessage unchanged; skipping decode");
                 return;
