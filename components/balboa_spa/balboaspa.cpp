@@ -1,6 +1,7 @@
 #include "balboaspa.h"
 #include "spa_message.h"
 #include "esphome/core/helpers.h"
+#include "esphome/components/wifi/wifi_component.h"
 #include <cmath>
 
 #define MAX_CLIENT_ID 0x2F
@@ -52,6 +53,14 @@ namespace esphome
         void BalboaSpa::update()
         {
             uint32_t now = millis();
+            const bool wifi_connected = wifi::global_wifi_component != nullptr && wifi::global_wifi_component->is_connected();
+
+            if (wifi_connected && !last_wifi_connected_)
+            {
+                update_all_listeners();
+            }
+            last_wifi_connected_ = wifi_connected;
+
             if(now - setup_time_ < startup_delay_ms_) {
                 last_received_time = now;
                 return;
@@ -74,7 +83,9 @@ namespace esphome
             else if (status_has_error())
             {
                 status_clear_error();
-            } else{
+            }
+            else
+            {
                 last_dead_log_time = 0;
             }
 
@@ -147,6 +158,30 @@ namespace esphome
                 }
                 state_dirty_ = false;
                 last_listener_dispatch_time = now_dispatch;
+            }
+        }
+
+        void BalboaSpa::update_all_listeners()
+        {
+            for (const auto &listener : this->listeners_)
+            {
+                listener();
+            }
+            for (const auto &listener : this->filter_listeners_)
+            {
+                listener(&spaFilterSettings);
+            }
+            for (const auto &listener : this->fault_log_listeners_)
+            {
+                listener(&spaFaultLog);
+            }
+            for (const auto &listener : this->highrange_listeners_)
+            {
+                listener();
+            }
+            for (const auto &listener : this->client_id_listeners_)
+            {
+                listener();
             }
         }
 
@@ -489,12 +524,6 @@ namespace esphome
         {
             if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59)
             {
-                if (spaState.hour == hour && spaState.minutes == minute)
-                {
-                    ESP_LOGV(TAG, "Skipping redundant time update to %02d:%02d", hour, minute);
-                    return;
-                }
-
                 target_hour = hour;
                 target_minute = minute;
                 PendingCmd time_cmd;
@@ -1008,6 +1037,9 @@ namespace esphome
                 ESP_LOGW(TAG, "Spa/temperature/target INVALID (raw %d)", msg->_setTemp);
             if (std::isnan(newState.current_temp) && msg->_currentTemp != 0xFF)
                 ESP_LOGW(TAG, "Spa/temperature/current INVALID (raw %d)", msg->_currentTemp);
+            
+            if (msg->_currentTemp == 0xFF && std::isnan(spaState.current_temp))
+                newState.current_temp = newState.target_temp;
 
             state_dirty_ = true;
             highrange_dirty_ |= (newState.highrange & 0x1) != (spaState.highrange & 0x1);

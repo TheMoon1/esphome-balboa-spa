@@ -94,6 +94,8 @@ namespace esphome
             void register_highrange_listener(const std::function<void()> &func) { this->highrange_listeners_.push_back(func); }
             void register_client_id_listener(const std::function<void()> &func) { this->client_id_listeners_.push_back(func); }
 
+            void update_all_listeners();
+
             bool get_heating();
             bool get_restmode();
             bool get_highrange();
@@ -225,6 +227,7 @@ namespace esphome
             bool live_range_refresh_ = false;
             bool highrange_dirty_ = false;
             bool state_dirty_ = false;
+            bool last_wifi_connected_ = false;
 
             TEMP_SCALE spa_temp_scale = TEMP_SCALE::UNKNOWN;
             CLOCK_MODE clock_mode_24hr = CLOCK_MODE::UNKNOWN;
