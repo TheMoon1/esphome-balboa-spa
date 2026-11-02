@@ -312,6 +312,7 @@ Enables/disables the secondary filter cycle. Turning ON requires filter 2 start 
 | `fault_log_time` | ISO 8601 timestamp of fault |
 | `reminder` | Active maintenance reminder |
 | `component_version` | Component version string |
+| `spa_config` | Hardware configuration reported by the spa, as JSON: raw values for `pump1`–`pump6`, `light1`, `light2`, `circ`, `blower`, `mister`, `aux1`, `aux2` (diagnostic) |
 
 ### Buttons
 
@@ -320,6 +321,8 @@ Enables/disables the secondary filter cycle. Turning ON requires filter 2 start 
 | `sync_time` | Synchronise spa clock with ESPHome system time |
 | `reconnect` | Drop and re-establish the spa connection |
 | `request_fault_log` | Refresh fault data on demand (also fetched automatically on startup) |
+| `request_filter_settings` | Re-read the filter schedule on demand (also refreshed automatically every 5 minutes) |
+| `request_config` | Re-read the spa hardware configuration on demand (also fetched automatically on startup) |
 | `disable_filter2` | Disable the filter 2 schedule |
 | `clear_reminder` | Acknowledge and clear the active maintenance reminder |
 
@@ -356,7 +359,7 @@ Fault sensors are split across the `sensor:` and `text_sensor:` platforms — se
 
 ### Reminders
 
-The `reminder` text sensor reports maintenance reminders from the spa: `None`, `Clean Filter`, `Check pH`, `Check Sanitizer`, or `Fault`. Use the `clear_reminder` button to acknowledge and clear the active reminder. Unknown codes show as `Unknown (0x##)` — please [open an issue](https://github.com/jhenkens/esphome-balboa-spa/issues/new) with the code and the message shown on your spa panel.
+The `reminder` text sensor reports maintenance reminders from the spa: `None`, `Priming`, `Test GFCI`, `Clean Filter`, `Check pH`, `Check Sanitizer`, or `Fault`. Use the `clear_reminder` button to acknowledge and clear the active reminder. Unknown codes show as `Unknown (0x##)` — please [open an issue](https://github.com/jhenkens/esphome-balboa-spa/issues/new) with the code and the message shown on your spa panel.
 
 ## Troubleshooting
 

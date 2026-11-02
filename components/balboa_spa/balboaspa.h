@@ -30,19 +30,19 @@ namespace esphome
         // Used as the dedup key and for pruning satisfied commands after state updates.
         enum class ExpectedField : uint8_t
         {
-            NONE        = 0,  // fire-and-forget, never retried
-            JET_0       = 1,
-            JET_1       = 2,
-            JET_2       = 3,
-            JET_3       = 4,
-            BLOWER      = 5,
-            LIGHT_0     = 6,
-            LIGHT_1     = 7,
-            HIGH_RANGE   = 8,
-            REST_MODE   = 9,
+            NONE = 0, // fire-and-forget, never retried
+            JET_0 = 1,
+            JET_1 = 2,
+            JET_2 = 3,
+            JET_3 = 4,
+            BLOWER = 5,
+            LIGHT_0 = 6,
+            LIGHT_1 = 7,
+            HIGH_RANGE = 8,
+            REST_MODE = 9,
             TARGET_TEMP = 10,
-            CLOCK_24H   = 11,
-            FILTER      = 12,
+            CLOCK_24H = 11,
+            FILTER = 12,
         };
 
         class BalboaSpa : public uart::UARTDevice, public PollingComponent
@@ -54,6 +54,7 @@ namespace esphome
             float get_setup_priority() const override;
 
             ControlConfig2Response get_current_config();
+            bool has_config() const { return has_last_settings_message_; } // false until the spa has reported its config
             SpaState *get_current_state();
             SpaFilterSettings *get_current_filter_settings();
             SpaFaultLog *get_current_fault_log();
@@ -68,8 +69,8 @@ namespace esphome
             void set_filter2_start_time(uint8_t hour, uint8_t minute);
             void set_filter2_duration(uint8_t hour, uint8_t minute);
             void disable_filter2();
-            void toggle_light(uint8_t index); // index 1-2
-            void toggle_jet(uint8_t index, uint8_t expected_state, uint8_t max_retries = 5);  // index 1-4
+            void toggle_light(uint8_t index);                                                // index 1-2
+            void toggle_jet(uint8_t index, uint8_t expected_state, uint8_t max_retries = 5); // index 1-4
             void toggle_blower(uint8_t expected_state, uint8_t max_retries = 5);
             void set_highrange(bool high);
             void clear_reminder();
@@ -123,6 +124,7 @@ namespace esphome
             uint8_t last_settings_crc = 0x00;
             uint8_t last_filter_crc = 0x00;
             uint8_t last_fault_crc = 0x00;
+
             uint8_t last_status_message_[sizeof(StatusMessage)] = {};
             bool has_last_status_message_ = false;
             uint8_t last_settings_message_[sizeof(ControlConfig2Response)] = {};
@@ -145,11 +147,11 @@ namespace esphome
             {
                 CmdType type;
                 ExpectedField target_field = ExpectedField::NONE; // dedup key + expected-state selector
-                uint8_t expected_toggle_value = 0;   // value expected in spa state after command succeeds
-                uint8_t retry_count = 0;      // number of times sent so far
-                uint8_t max_retries = 0;      // 0 = fire-and-forget; give up when retry_count >= max_retries
-                uint32_t queued_at = 0;       // when first created
-                uint32_t available_at = 0;    // earliest millis() at which this may be sent
+                uint8_t expected_toggle_value = 0;                // value expected in spa state after command succeeds
+                uint8_t retry_count = 0;                          // number of times sent so far
+                uint8_t max_retries = 0;                          // 0 = fire-and-forget; give up when retry_count >= max_retries
+                uint32_t queued_at = 0;                           // when first created
+                uint32_t available_at = 0;                        // earliest millis() at which this may be sent
                 union
                 {
                     uint8_t toggle_code;
@@ -176,12 +178,17 @@ namespace esphome
             };
             static const uint8_t CMD_QUEUE_SIZE = 8;
             static constexpr uint32_t RETRY_BACKOFF_MS = 5000;
+            static constexpr uint32_t REQUEST_TIMEOUT_MS = 10000;  // how long to wait for a config/fault log/filter response
+            static constexpr uint8_t REQUEST_MAX_RETRIES = 3;      // re-requests before a request is abandoned
+            static constexpr float TEMP_JUMP_THRESHOLD_C = 5.0f;   // a larger change in current temperature is held back
+            static constexpr float TEMP_SETTLE_TOLERANCE_C = 1.0f; // a held-back reading must stay within this to be accepted
+            static constexpr uint32_t TEMP_SETTLE_TIME_MS = 60000; // how long a held-back reading must persist
             static constexpr uint8_t PENDING_MSG_BUF_SIZE = 24;
             PendingCmd cmd_queue_[CMD_QUEUE_SIZE];
             uint8_t cmd_count_ = 0;
             uint8_t pending_msg_buf_[PENDING_MSG_BUF_SIZE];
             uint8_t pending_msg_len_ = 0;
-            PendingCmd pending_cmd_ = {};      // command used to build pending_msg_buf_
+            PendingCmd pending_cmd_ = {}; // command used to build pending_msg_buf_
             void insert_cmd(PendingCmd cmd);
             void remove_at(uint8_t i);
             void rebuild_pending_msg();
@@ -205,9 +212,9 @@ namespace esphome
             uint8_t target_filter2_duration_minute = 0x00;
             bool target_filter2_enable = false;
             uint8_t client_id = 0x00;
-            uint8_t client_id_override = 0x00;      // set via YAML client_id:, never cleared
+            uint8_t client_id_override = 0x00; // set via YAML client_id:, never cleared
             bool use_client_id_override = false;
-            uint8_t remembered_client_id_ = 0x00;   // loaded from NVS, cleared on reconnect
+            uint8_t remembered_client_id_ = 0x00; // loaded from NVS, cleared on reconnect
             bool use_remembered_client_id_ = false;
             bool remember_client_id_ = true;
             bool used_remembered_client_id_for_session_ = false;
@@ -217,6 +224,9 @@ namespace esphome
             uint8_t client_id_probe_expected_light_state_ = 0;
             ESPPreferenceObject client_id_pref_;
             uint32_t last_received_time = 0;
+            float current_temp_baseline_c_ = NAN;     // last accepted current temperature
+            float pending_current_temp_c_ = NAN;      // sudden jump waiting to settle
+            uint32_t pending_current_temp_start_ = 0; // millis() when the pending jump was first seen
             uint32_t last_status_received_ms_ = 0;
             uint32_t last_dead_log_time = 0;
             uint32_t last_cts_time = 0;
@@ -238,9 +248,15 @@ namespace esphome
             std::vector<std::function<void()>> highrange_listeners_;
             std::vector<std::function<void()>> client_id_listeners_;
 
-            char config_request_status = 0;           // stages: 0-> want it; 1-> requested it; 2-> got it; 3-> further processed it
-            char faultlog_request_status = 0;         // stages: 0-> want it; 1-> requested it; 2-> got it; 3-> further processed it
-            char filtersettings_request_status = 0;   // stages: 0-> want it; 1-> requested it; 2-> got it; 3-> further processed it
+            char config_request_status = 0;         // stages: 0-> want it; 1-> requested it; 2-> got it; 3-> abandoned (no response)
+            char faultlog_request_status = 0;       // stages: 0-> want it; 1-> requested it; 2-> got it; 3-> abandoned (no response)
+            char filtersettings_request_status = 0; // stages: 0-> want it; 1-> requested it; 2-> got it; 3-> abandoned (no response)
+            uint32_t config_requested_at_ = 0;      // millis() when the request was last sent
+            uint32_t faultlog_requested_at_ = 0;
+            uint32_t filtersettings_requested_at_ = 0;
+            uint8_t config_request_retries_ = 0; // consecutive unanswered requests
+            uint8_t faultlog_request_retries_ = 0;
+            uint8_t filtersettings_request_retries_ = 0;
             char faultlog_update_timer = 0;           // temp logic so we only get the fault log once per 5 minutes
             uint16_t filtersettings_update_timer = 0; // timer for periodic filter settings requests (every 5 minutes)
 
@@ -264,6 +280,27 @@ namespace esphome
             void decodeState(const StatusMessage *msg);
             void decodeFilterSettings(const FilterStatusMessage *msg);
             void decodeFault();
+            bool accept_current_temp(float temp_c);
+            void check_request_timeout(char &status, uint32_t requested_at, uint8_t &retries, const char *name);
+
+            template <size_t N>
+            bool update_if_changed(uint8_t (&last_buf)[N], bool &has_last, const void *msg)
+            {
+                if (has_last && memcmp(last_buf, msg, N) == 0)
+                    return false;
+                memcpy(last_buf, msg, N);
+                has_last = true;
+                return true;
+            }
+            bool update_if_changed(uint8_t *last_buf, size_t &last_len, bool &has_last, const void *data, size_t len)
+            {
+                if (has_last && last_len == len && memcmp(last_buf, data, len) == 0)
+                    return false;
+                memcpy(last_buf, data, len);
+                last_len = len;
+                has_last = true;
+                return true;
+            }
         };
 
     } // namespace balboa_spa

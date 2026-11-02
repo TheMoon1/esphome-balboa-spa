@@ -1,5 +1,5 @@
 # this configuration file has all empty custom components set up.
-# use 'esphome test_empty.yaml compile' to build. 
+# use 'esphome test_empty.yaml compile' to build.
 
 external_components:
   - source:
@@ -27,7 +27,7 @@ switch:
       name: Second Lights
     blower:
       name: Blower
-    highrange:
+    high_range:
       name: Temperature Mode
     filter2:
       name: "Filter 2"
@@ -86,13 +86,13 @@ sensor:
       unit_of_measurement: "°F"
     blower:
       name: Blower
-    highrange:
+    high_range:
       name: High Range
     circulation:
       name: Circulation
-    restmode:
+    rest_mode:
       name: Rest Mode
-    heatstate:
+    heat_state:
       name: Heat State
     spa_temp_scale:
       name: Spa Temp Scale
@@ -112,13 +112,13 @@ binary_sensor:
     balboa_spa_id: test_spa
     blower:
       name: Blower
-    highrange:
+    high_range:
       name: High Range
     circulation:
       name: Circulation Pump
-    restmode:
+    rest_mode:
       name: Rest Mode
-    heatstate:
+    heat_state:
       name: Heat State
     connected:
       name: Connected
@@ -146,6 +146,8 @@ text_sensor:
       name: "Reminder"
     component_version:
       name: "Component Version"
+    spa_config:
+      name: "Spa Config"
 
 button:
   - platform: balboa_spa
@@ -158,6 +160,10 @@ button:
       name: "Request Fault Log"
     clear_reminder:
       name: "Clear Reminder"
+    request_filter_settings:
+      name: "Request Filter Settings"
+    request_config:
+      name: "Request Config"
 
 text:
   - platform: balboa_spa
@@ -172,7 +178,7 @@ text:
       name: "Set Filter 1 Duration"
       mode: TEXT
     filter2_start_time:
-      name: "Set Filter 2 Start Time"  
+      name: "Set Filter 2 Start Time"
       mode: TEXT
     filter2_duration:
       name: "Set Filter 2 Duration"

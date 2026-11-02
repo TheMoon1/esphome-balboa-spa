@@ -20,10 +20,10 @@ namespace esphome
         static constexpr float LOWRANGE_MIN_TEMP_C = 10.0f;
         static constexpr float LOWRANGE_MAX_TEMP_C = 37.0f;
 
-        // Offset above HIGHRANGE_MAX used as a sanity cap when decoding raw wire temperatures.
-        // Values above (HIGHRANGE_MAX + offset) are treated as garbage and discarded.
-        static constexpr float TEMP_SANITY_OFFSET_C = 40.0f;  // cap = 80 °C
-        static constexpr float TEMP_SANITY_OFFSET_F = 72.0f;  // cap = 176 °F
+        static constexpr float CURRENT_TEMP_MAX_C = 80.0f;
+        static constexpr float CURRENT_TEMP_MAX_F = 176.0f;
+        static constexpr float CURRENT_TEMP_MIN_C = 1.0f;
+        static constexpr float CURRENT_TEMP_MIN_F = 36.0f;
         struct SpaFaultLog
         {
             uint8_t total_entries : 5;
@@ -67,13 +67,14 @@ namespace esphome
         // issue with the code value and the message shown on your spa panel.
         enum class ReminderType : uint8_t
         {
-            NONE             = 0x00,
-            PRIMING          = 0x01,
-            CLEAN_FILTER     = 0x04,
-            CHECK_SANITIZER  = 0x09,
-            CHECK_PH         = 0x0A,
-            FAULT            = 0x1E,
-            UNKNOWN          = 0xFF, // sentinel / not-yet-received
+            NONE = 0x00,
+            PRIMING = 0x01,
+            TEST_GFCI = 0x02,
+            CLEAN_FILTER = 0x04,
+            CHECK_SANITIZER = 0x09,
+            CHECK_PH = 0x0A,
+            FAULT = 0x1E,
+            UNKNOWN = 0xFF, // sentinel / not-yet-received
         };
 
         // Reminder/status codes broadcast in StatusMessage payload byte 01.
@@ -81,16 +82,16 @@ namespace esphome
         // issue with the code value and the message shown on your spa panel.
         enum class CleanupCycle : uint8_t
         {
-            UNKNOWN          = 0x00,
-            ACTIVE           = 0x0C,  
-            OFF              = 0x04,
+            UNKNOWN = 0x00,
+            ACTIVE = 0x0C,
+            OFF = 0x04,
         };
 
         // Heating mode from StatusMessage byte 05, bits[1:0]
         enum class HeatingMode : uint8_t
         {
-            READY         = 0,
-            REST          = 1,
+            READY = 0,
+            REST = 1,
             READY_IN_REST = 3,
             NOT_YET_RECEIVED = 254,
         };
@@ -107,7 +108,6 @@ namespace esphome
             "OFF",
             "ON",
             "HIGH",
-            "DONT_KNOW"
-        };
+            "DONT_KNOW"};
     } // namespace balboa_spa
 } // namespace esphome

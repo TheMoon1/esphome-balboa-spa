@@ -1,16 +1,17 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import sensor
-
-from .. import (
-    balboa_spa_ns,
-    BalboaSpa,
-    CONF_SPA_ID
+from esphome.const import (
+    DEVICE_CLASS_TEMPERATURE,
 )
 
 from esphome.const import (
     DEVICE_CLASS_TEMPERATURE,
 )
+from .. import CONF_SPA_ID, BalboaSpa, balboa_spa_ns
+
+DEPENDENCIES = ["balboa_spa"]
+
 
 DEPENDENCIES = ["balboa_spa"]
 
@@ -21,10 +22,10 @@ SpaFaultLogSensor = balboa_spa_ns.class_("BalboaSpaFaultLogSensors", sensor.Sens
 SpaFaultLogSensorTypeEnum = SpaFaultLogSensor.enum("BalboaSpaFaultLogSensorType", True)
 
 CONF_BLOWER = "blower"
-CONF_HIGHRANGE = "highrange"
+CONF_HIGH_RANGE = "high_range"
 CONF_CIRCULATION = "circulation"
-CONF_RESTMODE = "restmode"
-CONF_HEATSTATE = "heatstate"
+CONF_REST_MODE = "rest_mode"
+CONF_HEAT_STATE = "heat_state"
 CONF_CURRENT_TEMP = "current_temp"
 CONF_TARGET_TEMP = "target_temp"
 CONF_SPA_TEMP_SCALE = "spa_temp_scale"
@@ -41,7 +42,7 @@ CONFIG_SCHEMA = cv.Schema(
             SpaSensor,
             icon="mdi:fan",
         ),
-        cv.Optional(CONF_HIGHRANGE): sensor.sensor_schema(
+        cv.Optional(CONF_HIGH_RANGE): sensor.sensor_schema(
             SpaSensor,
             icon="mdi:thermometer-lines",
         ),
@@ -49,11 +50,11 @@ CONFIG_SCHEMA = cv.Schema(
             SpaSensor,
             icon="mdi:pump",
         ),
-        cv.Optional(CONF_RESTMODE): sensor.sensor_schema(
+        cv.Optional(CONF_REST_MODE): sensor.sensor_schema(
             SpaSensor,
             icon="mdi:sleep",
         ),
-        cv.Optional(CONF_HEATSTATE): sensor.sensor_schema(
+        cv.Optional(CONF_HEAT_STATE): sensor.sensor_schema(
             SpaSensor,
             icon="mdi:fire",
         ),
@@ -94,19 +95,36 @@ CONFIG_SCHEMA = cv.Schema(
             SpaFaultLogSensor,
             icon="mdi:calendar-clock",
         ),
-    })
+    }
+)
+
 
 async def to_code(config):
     parent = await cg.get_variable(config[CONF_SPA_ID])
 
-    for sensor_type in [CONF_BLOWER, CONF_HIGHRANGE, CONF_CIRCULATION, CONF_RESTMODE, CONF_HEATSTATE, CONF_CURRENT_TEMP, CONF_TARGET_TEMP, CONF_SPA_TEMP_SCALE, CONF_TIME_SINCE_LAST_STATUS]:
+    for sensor_type in [
+        CONF_BLOWER,
+        CONF_HIGH_RANGE,
+        CONF_CIRCULATION,
+        CONF_REST_MODE,
+        CONF_HEAT_STATE,
+        CONF_CURRENT_TEMP,
+        CONF_TARGET_TEMP,
+        CONF_SPA_TEMP_SCALE,
+        CONF_TIME_SINCE_LAST_STATUS,
+    ]:
         if conf := config.get(sensor_type):
             var = await sensor.new_sensor(conf)
             cg.add(var.set_parent(parent))
             sensor_type_value = getattr(SpaSensorTypeEnum, sensor_type.upper())
             cg.add(var.set_sensor_type(sensor_type_value))
-    
-    for sensor_type in [CONF_FAULT_CODE, CONF_FAULT_TOTAL_ENTRIES, CONF_FAULT_CURRENT_ENTRY, CONF_FAULT_DAYS_AGO]:
+
+    for sensor_type in [
+        CONF_FAULT_CODE,
+        CONF_FAULT_TOTAL_ENTRIES,
+        CONF_FAULT_CURRENT_ENTRY,
+        CONF_FAULT_DAYS_AGO,
+    ]:
         if conf := config.get(sensor_type):
             var = await sensor.new_sensor(conf)
             cg.add(var.set_parent(parent))
