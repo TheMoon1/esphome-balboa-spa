@@ -75,7 +75,6 @@ namespace esphome
 
             if (now - setup_time_ < startup_delay_ms_)
             {
-
                 last_received_time = now;
                 return;
             }
@@ -895,48 +894,9 @@ namespace esphome
                 input_buffer[1] = 0xFF;
                 switch (base->_messageType)
                 {
-                switch (base->_messageType)
+                case msConfigResponse:
                 {
-                    case msConfigResponse:
-                    {
-                        if (!check_msg_length<ConfigResponseMessage>(input_buffer, "ConfigResponseMessage"))
-                            break;
-                        const ConfigResponseMessage *msg = reinterpret_cast<const ConfigResponseMessage *>(input_buffer);
-                        (void)msg;
-                        ESP_LOGV(TAG, "ConfigResponseMessage");
-                        break;
-                    }
-                    case msFilterConfig:
-                    {
-                        if (!check_msg_length<FilterStatusMessage>(input_buffer, "FilterStatusMessage"))
-                            break;
-                        const FilterStatusMessage *msg = reinterpret_cast<const FilterStatusMessage *>(input_buffer);
-                        ESP_LOGV(TAG, "FilterStatusMessage");
-                        decodeFilterSettings(msg);
-                        break;
-                    }
-                    case msControlConfig2:
-                    {
-                        if (!check_msg_length<ControlConfig2Response>(input_buffer, "ControlConfig2Response"))
-                            break;
-                        ESP_LOGV(TAG, "ControlConfig2Response");
-                        const ControlConfig2Response *msg = reinterpret_cast<const ControlConfig2Response *>(input_buffer);
-                        decodeSettings(msg);
-                        break;
-                    }
-                    default:
-                        if(found_msg_type == 0x06){
-                            send_message();
-                        }
-                        else if (found_msg_type == 0x28)
-                        {
-                            decodeFault();
-                        }
-                        else
-                        {
-                            ESP_LOGD(TAG, "Unhandled client_id targeted message type: " MSGTYPE_FMT, MSGTYPE_ARGS(base->_messageType));
-                        }
-
+                    if (!check_msg_length<ConfigResponseMessage>(input_buffer, "ConfigResponseMessage"))
                         break;
                     const ConfigResponseMessage *msg = reinterpret_cast<const ConfigResponseMessage *>(input_buffer);
                     (void)msg;
@@ -981,25 +941,9 @@ namespace esphome
             {
                 switch (base->_messageType)
                 {
-                switch (base->_messageType)
+                case msStatus:
                 {
-                    case msStatus:
-                    {
-                        if (!check_msg_length<StatusMessage>(input_buffer, "StatusMessage"))
-                            break;
-                        const StatusMessage *msg = reinterpret_cast<const StatusMessage *>(input_buffer);
-                        ESP_LOGV(TAG, "StatusMessage: currentTemp=%d setTemp=%d", msg->_currentTemp, msg->_setTemp);
-                        decodeState(msg);
-                        break;
-                    }
-                    case msSetTempRange:
-                    {
-                        ESP_LOGV(TAG, "SetTempRangeMessage");
-                        break;
-                    }
-                    default:
-                        ESP_LOGD(TAG, "Unhandled broadcast message type: " MSGTYPE_FMT, MSGTYPE_ARGS(base->_messageType));
-
+                    if (!check_msg_length<StatusMessage>(input_buffer, "StatusMessage"))
                         break;
                     const StatusMessage *msg = reinterpret_cast<const StatusMessage *>(input_buffer);
                     ESP_LOGV(TAG, "StatusMessage: currentTemp=%d setTemp=%d", msg->_currentTemp, msg->_setTemp);
@@ -1162,6 +1106,11 @@ namespace esphome
 
         void BalboaSpa::decodeSettings(const ControlConfig2Response *msg)
         {
+            // Mark the request answered before the duplicate check: an unchanged
+            // response is still a response.
+            config_request_status = 2;
+            config_request_retries_ = 0;
+
             if (!update_if_changed(last_settings_message_, has_last_settings_message_, msg))
             {
                 ESP_LOGV(TAG, "ControlConfig2Response unchanged; skipping decode");
@@ -1175,7 +1124,6 @@ namespace esphome
                      spaConfig.light1, spaConfig.light2,
                      spaConfig.circ, spaConfig.blower, spaConfig.mister,
                      spaConfig.aux1, spaConfig.aux2);
-            config_request_status = 2;
         }
 
         bool BalboaSpa::accept_current_temp(float temp_c)
@@ -1266,6 +1214,13 @@ namespace esphome
 
         void BalboaSpa::decodeFilterSettings(const FilterStatusMessage *msg)
         {
+            // Mark the request answered before the duplicate check: an unchanged
+            // response is still a response, and the periodic refresh timer only
+            // runs once the status is back at 2.
+            filtersettings_request_status = 2;
+            filtersettings_request_retries_ = 0;
+            filtersettings_update_timer = 0;
+
             if (!update_if_changed(last_filter_message_, has_last_filter_message_, msg))
             {
                 ESP_LOGV(TAG, "FilterStatusMessage unchanged; skipping decode");
@@ -1309,6 +1264,12 @@ namespace esphome
             // Accesses up to input_buffer[9] — require at least 10 bytes.
             if (!check_fault_length(input_buffer))
                 return;
+
+            // Mark the request answered before the duplicate check: an unchanged
+            // response is still a response, and the filter settings request waits
+            // on this status.
+            faultlog_request_status = 2;
+            faultlog_request_retries_ = 0;
 
             if (!update_if_changed(last_fault_payload_, last_fault_length_, has_last_fault_message_, input_buffer, input_buffer[0]))
             {

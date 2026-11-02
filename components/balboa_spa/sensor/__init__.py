@@ -5,13 +5,7 @@ from esphome.const import (
     DEVICE_CLASS_TEMPERATURE,
 )
 
-from esphome.const import (
-    DEVICE_CLASS_TEMPERATURE,
-)
 from .. import CONF_SPA_ID, BalboaSpa, balboa_spa_ns
-
-DEPENDENCIES = ["balboa_spa"]
-
 
 DEPENDENCIES = ["balboa_spa"]
 

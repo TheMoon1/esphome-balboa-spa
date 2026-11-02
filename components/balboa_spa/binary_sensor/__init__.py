@@ -52,7 +52,6 @@ CONFIG_SCHEMA = cv.Schema(
             device_class=DEVICE_CLASS_POWER,
             entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
             icon="mdi:fire",
-
         ),
         cv.Optional(CONF_CONNECTED): binary_sensor.binary_sensor_schema(
             SpaSensor,
